@@ -118,6 +118,10 @@ plot(timeArray,scaledCurrents)
 legend(StageNamesHeader_AvgStD)
 saveas(gcf,'Scaled Currents.fig')
 figure;
+plot(timeArray,currentAveragesMatrix)
+legend(StageNamesHeader_AvgStD)
+saveas(gcf,'Raw Currents.fig')
+figure;
 plot(1:c,Tau)
 saveas(gcf,'Tau.fig')
 
