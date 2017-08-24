@@ -1,5 +1,7 @@
 % TO DO: Make Tau detection more robust?
 % Subtract baseline that exists during prestep delay (before scaling) DONE
+% NOTE: csv read doesn't seem to work well with .xlsx files. Input is
+% gibberish
 close all;
 clear;
 filesInDirectory = dir; %Struct containing properties of ALL files in directory
@@ -35,7 +37,7 @@ oneStageDoneFlag            = 0;    %logical
 for k = 1:length(fileNames_toBeProcessed)                           %Cycle through all valid files starting from first 
     currentFileName             =   fileNames_toBeProcessed(k);             %Obtain new file name      
     currentStageNamePlusTrial   =   ExtractedStagePlusTrialNames(k);
-    if(contains(string(fileNames_toBeProcessed(k)),{'EIS','Ab','DSP','PBS'})) 
+    if(contains(string(fileNames_toBeProcessed(k)),{'EIS','Ab','DSP','PBS','AB'})) 
         continue;   %Ignore preliminary steps
     end        
     currentStage = extractStageName(currentStageNamePlusTrial);    
@@ -65,11 +67,13 @@ voltageArray = getArrayFromFile(string(currentFileName),'Voltage');
 %Data Entry 
 %Reordering Columns if needed %Cnt DosesArray = [0,1,2,3,4,6,8,10,15,20,25,30,35,40,50,70,80,90,100,120,135,150];
 %For continuous dosing: reorderArray = [1,19,8,20,21,22,9,2,10,11,3,12,13,4,14,5,15,6,16,17,7,18];
-%For BEV: reorderArray = [3,2,1];
-% reorderArray = [1,19,8,20,21,22,9,2,10,11,3,12,13,4,14,5,15,6,16,17,7,18];
-% StageNamesHeader_AvgStD = reorderColumns( StageNamesHeader_AvgStD, reorderArray );
-% currentAveragesMatrix = reorderColumns( currentAveragesMatrix, reorderArray );
-% currentStdDevMatrix = reorderColumns( currentStdDevMatrix, reorderArray );
+%For CDR: reorderArray = [,,,,,];
+%For buffer, 100pg,1ng,100ng,200ng: reorderArray = [4,2,3,5,1];
+% %For BEV: reorderArray = [3,2,1];
+reorderArray = [4,2,3,5,1];
+StageNamesHeader_AvgStD = reorderColumns( StageNamesHeader_AvgStD, reorderArray );
+currentAveragesMatrix = reorderColumns( currentAveragesMatrix, reorderArray );
+currentStdDevMatrix = reorderColumns( currentStdDevMatrix, reorderArray );
 %Writing the data to file
 xlswrite('Data Analysis File',StageNamesHeader_AvgStD,  'Current Averages','A1')
 xlswrite('Data Analysis File',currentAveragesMatrix,    'Current Averages','A2')
@@ -79,18 +83,18 @@ xlswrite('Data Analysis File',timeArray,      'Combined Data','A2')
 
 %Data Analysis and processing:
 %Get the times at which steps occur
-v_step1 = 0.27;v_step2 = -0.27;t_step1 = 0; t_step2 = 0; index_step1 = 0; index_step2 = 0;
+v_step1 = 0.19;v_step2 = -0.19;t_step1 = 0; t_step2 = 0; index_step1 = 0; index_step2 = 0; %Assuming voltage step is greater than 0.19Volts
 for k = 1:length(timeArray) 
     if voltageArray(k) > v_step1 %If voltage is found to exceed 0.2 volts, then this is time of first step        
         t_step1 = timeArray(k);
-        index_step1 = k;
+        index_step1 = k-1;
         break;
     end
 end
 for k = 1:length(timeArray) 
     if voltageArray(k) < v_step2 %If voltage is found to exceed 0.2 volts, then this is time of first step        
         t_step2 = timeArray(k);
-        index_step2 = k;
+        index_step2 = k-1;
         break;
     end
 end
@@ -103,9 +107,9 @@ for k = 1:c %The type of scaling here is as follows: the baseline is subtracted 
     baseline = currentAveragesMatrix(index_step1-1,k);
     scaledCurrents(:,k) = currentAveragesMatrix(:,k) - baseline; %Obtainin baseline adjusted values for current stage
     scaler1             = scaledCurrents(index_step1,k); %get the scaling factor for the first step of current stage     
-    scaler2             = scaledCurrents(index_step2,k); %get the scaling factor for the second step of current stage
-    scaledCurrents(index_step1-1:index_step2-1,k) = -1*scaledCurrents(index_step1-1:index_step2-1,k)/scaler; %apply scaling, stage 1
-    scaledCurrents(index_step2:end,k) = -1*scaledCurrents(index_step2:end,k)/scaler; %apply scaling, stage 2
+    scaler2             = scaledCurrents(index_step2+1,k); %get the scaling factor for the second step of current stage
+    scaledCurrents(index_step1-1:index_step2-1,k) = scaledCurrents(index_step1-1:index_step2-1,k)/scaler1; %apply scaling, stage 1
+    scaledCurrents(index_step2:end,k) = -1*scaledCurrents(index_step2:end,k)/scaler2; %apply scaling, stage 2
     Tau(:,k)            = getTimeConstant(timeArray,currentAveragesMatrix(:,k),t_step1,t_step2); %deduce Tau
 end
 xlswrite('Data Analysis File',StageNamesHeader_AvgStD,  'Tau','A1')
