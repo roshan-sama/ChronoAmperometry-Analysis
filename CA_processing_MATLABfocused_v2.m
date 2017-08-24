@@ -102,9 +102,11 @@ for k = 1:c %The type of scaling here is as follows: the baseline is subtracted 
     %Variables needed for data curation: Baseline, scaler
     baseline = currentAveragesMatrix(index_step1-1,k);
     scaledCurrents(:,k) = currentAveragesMatrix(:,k) - baseline; %Obtainin baseline adjusted values for current stage
-    scaler              = scaledCurrents(index_step2,k); %get the scaling factor for the current stage       
-    scaledCurrents(:,k) = -1*scaledCurrents(:,k)/scaler; %apply scaling
-    Tau(:,k)              = getTimeConstant(timeArray,currentAveragesMatrix(:,k),t_step1,t_step2); %deduce Tau
+    scaler1             = scaledCurrents(index_step1,k); %get the scaling factor for the first step of current stage     
+    scaler2             = scaledCurrents(index_step2,k); %get the scaling factor for the second step of current stage
+    scaledCurrents(index_step1-1:index_step2-1,k) = -1*scaledCurrents(index_step1-1:index_step2-1,k)/scaler; %apply scaling, stage 1
+    scaledCurrents(index_step2:end,k) = -1*scaledCurrents(index_step2:end,k)/scaler; %apply scaling, stage 2
+    Tau(:,k)            = getTimeConstant(timeArray,currentAveragesMatrix(:,k),t_step1,t_step2); %deduce Tau
 end
 xlswrite('Data Analysis File',StageNamesHeader_AvgStD,  'Tau','A1')
 xlswrite('Data Analysis File',Tau,      'Tau','A2')
@@ -114,6 +116,8 @@ saveas(gcf,'Scaled Currents.fig')
 figure;
 plot(1:c,Tau)
 saveas(gcf,'Tau.fig')
+
+
 %-- END PROGRAM --%
 
 %% Get the data file's extension from the user
